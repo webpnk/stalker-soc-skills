@@ -1,0 +1,242 @@
+-- moddev: developer tools for SoC mods, active only when [moddev] enabled = true (system.ltx include).
+-- Call moddev.on_spawn() from the actor's net_spawn and moddev.update(time_global()) every actor update.
+--
+-- Command channel (driven by src\tools\game.ps1 cmd "<lua>"):
+--  * The host writes Lua into appdata\mod_ipc\cmd.lua (fsgame.ltx alias $mod_ipc$); line 1 is a unique
+--    tag comment. A tag runs once. The file must always exist (game.ps1 keeps it).
+--  * The FS caches file lists at startup, so fs:exist() never sees a new file, but
+--    fs:r_open(<absolute path>) does.
+--  * Retail SoC Lua has no io library and log() is a no-op. Output goes through the console:
+--    get_console():execute("mod:<text>") logs "! Unknown command: mod:<text>" (first token only, so
+--    spaces become '|'), and execute("flush") writes the log file immediately.
+--    Replies end with "mod:==|done|<tag>".
+
+local enabled = nil
+local next_poll, next_flush = 0, 0
+local IPC, CMD = "$mod_ipc$", "cmd.lua"
+local last_tag = nil
+
+function is_enabled()
+	if enabled == nil then
+		local ini = system_ini()
+		enabled = ini:section_exist("moddev") and ini:line_exist("moddev", "enabled") and ini:r_bool("moddev", "enabled")
+	end
+	return enabled
+end
+
+-- writes one or more lines to the engine log (works in the retail build, unlike log())
+function out(...)
+	local parts = {}
+	for i = 1, select("#", ...) do parts[i] = tostring(select(i, ...)) end
+	local text = table.concat(parts, " ")
+	for line in string.gmatch(text .. "\n", "([^\n]*)\n") do
+		line = string.gsub(line, " ", "|")
+		while true do
+			get_console():execute("mod:" .. string.sub(line, 1, 200))
+			if string.len(line) <= 200 then break end
+			line = string.sub(line, 201)
+		end
+	end
+end
+
+local function read_command()
+	local fs = getFS()
+	local r = fs:r_open(fs:update_path(IPC, CMD))
+	if r == nil then return nil end
+	local bytes = {}
+	-- r_elapsed(), not r_eof(): a wrong luabind overload is an uncatchable C++ exception
+	for i = 1, r:r_elapsed() do bytes[i] = string.char(r:r_u8()) end
+	-- no fs:r_close(r): its reader*& parameter throws an uncatchable luabind error; dev-only leak
+	return table.concat(bytes)
+end
+
+local last_read_error = nil
+local function run_command()
+	local ok, code = pcall(read_command)
+	if not ok then
+		if code ~= last_read_error then last_read_error = code out("ipc read error:", code) end
+		return
+	end
+	if code == nil then return end
+	local tag = string.match(code, "^([^\r\n]*)") or ""
+	if tag == last_tag then return end
+	last_tag = tag
+	local chunk, err = loadstring(code, "mod_cmd")
+	if chunk == nil then
+		out("compile error:", err)
+	else
+		local ok2, res = pcall(chunk)
+		if not ok2 then out("runtime error:", res) end
+	end
+	out("== done " .. tag)
+	get_console():execute("flush")
+end
+
+function on_spawn()
+	if not is_enabled() then return end
+	out("actor spawned on", level.name())
+	get_console():execute("flush")
+end
+
+-- one-shot trace marker (first time only) for bisecting hangs and silent binder errors:
+-- sprinkle moddev.step("name") and read which markers reached the log
+local steps_seen = {}
+function step(name)
+	if not is_enabled() or steps_seen[name] then return end
+	steps_seen[name] = true
+	get_console():execute("modstep_" .. name)
+	get_console():execute("flush")
+end
+
+god = false   -- dev: refill the actor's health every frame (health setter adds a delta)
+
+function update(t)
+	if not is_enabled() then return end
+	if god and db.actor.health < 1 then db.actor.health = 1 - db.actor.health end
+	if t >= next_poll then
+		next_poll = t + 250
+		run_command()
+	end
+	if t >= next_flush then
+		next_flush = t + 5000
+		get_console():execute("flush")
+	end
+end
+
+-- ---------- navigation (no "level vertex by position" API in SoC) ----------
+
+-- level vertex nearest to (x, z) reachable over the AI mesh from vertex lv
+function nav_vertex(lv, x, z)
+	local best = lv
+	for i = 1, 200 do
+		local p = level.vertex_position(best)
+		local d = vector():set(x - p.x, 0, z - p.z)
+		local dist = d:magnitude()
+		if dist < 1.5 then break end
+		d:normalize()
+		local nxt = level.vertex_in_direction(best, d, math.min(dist, 25))
+		if nxt == best then
+			local moved = false
+			for _, a in ipairs({ 0.7, -0.7, 1.4, -1.4 }) do
+				local s = vector():set(d.x * math.cos(a) - d.z * math.sin(a), 0, d.x * math.sin(a) + d.z * math.cos(a))
+				local alt = level.vertex_in_direction(best, s, 8)
+				if alt ~= best then best = alt moved = true break end
+			end
+			if not moved then break end
+		else
+			best = nxt
+		end
+	end
+	return best
+end
+
+-- level vertex and game vertex of the game-graph vertex on this level closest to (x, z)
+function graph_anchor(x, z)
+	local gg = game_graph()
+	local my_level = gg:vertex(db.actor:game_vertex_id()):level_id()
+	local best_lv, best_gv, best_d = nil, nil, 1e12
+	for gv = 0, 4000 do
+		if not gg:valid_vertex_id(gv) then break end
+		local v = gg:vertex(gv)
+		if v:level_id() == my_level then
+			local p = v:level_point()
+			local d = (p.x - x) ^ 2 + (p.z - z) ^ 2
+			if d < best_d then best_lv, best_gv, best_d = v:level_vertex_id(), gv, d end
+		end
+	end
+	return best_lv, best_gv
+end
+
+-- valid (position, level vertex, game vertex) nearest to (x, z). NB: in villages the nearest AI
+-- vertex is often inside a ruin; stage set pieces at hand-picked, tested spots.
+function point_near(x, z)
+	local alv, agv = graph_anchor(x, z)
+	local lv = nav_vertex(alv or db.actor:level_vertex_id(), x, z)
+	return level.vertex_position(lv), lv, agv or db.actor:game_vertex_id()
+end
+
+-- ---------- helpers for commands ----------
+
+function pos()
+	local p = db.actor:position()
+	return string.format("%.1f,%.1f,%.1f lv=%d gv=%d", p.x, p.y, p.z, db.actor:level_vertex_id(), db.actor:game_vertex_id())
+end
+
+function tp(x, y, z) db.actor:set_actor_position(vector():set(x, y, z)) end
+
+-- teleport to the valid ground point nearest (x, z)
+function tp_near(x, z)
+	local p = point_near(x, z)
+	tp(p.x, p.y, p.z)
+end
+
+-- turn the actor to face a world point (yaw only)
+function face(x, z)
+	local p = db.actor:position()
+	db.actor:set_actor_direction(-vector():set(x - p.x, 0, z - p.z):getH())
+end
+
+-- view direction on the ground plane. NB: db.actor:direction() is NOT the view direction.
+function look_dir()
+	local d = device().cam_dir
+	return vector():set(d.x, 0, d.z):normalize()
+end
+
+-- spawns an alife object `dist` metres in front of the actor
+function spawn_ahead(section, dist)
+	local lv = level.vertex_in_direction(db.actor:level_vertex_id(), look_dir(), dist or 5)
+	local p = level.vertex_position(lv)
+	local se = alife():create(section, p, lv, db.actor:game_vertex_id())
+	out("spawned", section, se.id, string.format("at %.1f,%.1f,%.1f", p.x, p.y, p.z))
+	return se
+end
+
+-- items into the actor's inventory (never pass a nil parent to alife():create)
+function give(section, n)
+	for i = 1, n or 1 do
+		alife():create(section, db.actor:position(), db.actor:level_vertex_id(), db.actor:game_vertex_id(), db.actor:id())
+	end
+end
+
+-- server object by name (linear scan; dev use only)
+function find(name)
+	local sim = alife()
+	for id = 1, 65534 do
+		local se = sim:object(id)
+		if se and se:name() == name then return se end
+	end
+	return nil
+end
+
+-- teleport next to a named alife object (smart terrain, restrictor, NPC...)
+function tp_to(name, dx, dz)
+	local se = find(name)
+	if se == nil then out("tp_to: no object", name) return end
+	local p = se.position
+	tp(p.x + (dx or 0), p.y + 0.5, p.z + (dz or 0))
+	out("tp_to", name, string.format("%.1f,%.1f,%.1f", p.x, p.y, p.z))
+end
+
+-- stand `dist` m in front of an online object (by id) and face it, ready to press the use key
+function tp_face(id, dist)
+	local o = level.object_by_id(id)
+	if o == nil then out("tp_face: not online", id) return end
+	local p = o:position()
+	local d = o:direction()
+	local lv = level.vertex_in_direction(o:level_vertex_id(), vector():set(d.x, 0, d.z):normalize(), dist or 1.6)
+	local q = level.vertex_position(lv)
+	tp(q.x, q.y, q.z)
+	face(p.x, p.z)
+end
+
+-- list online objects within r metres: name, section, distance
+function near(r)
+	local a = db.actor:position()
+	for id = 1, 65534 do
+		local o = level.object_by_id(id)
+		if o and id ~= db.actor:id() then
+			local d = o:position():distance_to(a)
+			if d < (r or 20) then out(o:name(), o:section(), string.format("%.1f", d)) end
+		end
+	end
+end

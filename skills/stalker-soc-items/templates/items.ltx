@@ -1,0 +1,87 @@
+; __PREFIX__: item sections (append to config\__PREFIX__\__PREFIX___system.ltx or #include a file from it).
+; Every item needs: a parent with the right class, inv_name/description string ids, an icon cell
+; (inv_grid_x/y/width/height in ui_icon_equipment.dds, 50 px cells), a world visual.
+
+; ---------- quest / story items (can't be sold or dropped by accident) ----------
+[__PREFIX___story_item]:quest_case_01
+quest_item          = true
+can_trade           = false
+inv_weight          = 0.2
+cost                = 0
+
+[__PREFIX___letter]:__PREFIX___story_item
+$spawn              = "__PREFIX__\letter"
+visual              = equipments\item_document_1      ; also item_document_2, item_merger, item_flash_2
+inv_name            = __PREFIX___letter_name
+inv_name_short      = __PREFIX___letter_name
+description         = __PREFIX___letter_desc
+inv_grid_width      = 1
+inv_grid_height     = 1
+inv_grid_x          = 0          ; your cell (see stalker-soc-items: free atlas area)
+inv_grid_y          = 36
+
+; ---------- food / consumable with custom effects ----------
+[__PREFIX___ration]:bread
+$spawn              = "__PREFIX__\ration"
+inv_name            = __PREFIX___ration_name
+inv_name_short      = __PREFIX___ration_name
+description         = __PREFIX___ration_desc
+eat_health          = 0.25
+eat_power           = 0.5
+eat_satiety         = 0.6
+cost                = 150
+; icon: inherit bread's cell, or set inv_grid_* to your own
+
+; ---------- belt artefact with custom stats ----------
+; restore speeds are per GAME second (x10 real time); immunities scale incoming hits while on the belt
+[__PREFIX___amulet]:af_base
+GroupControlSection = spawn_group
+$spawn              = "__PREFIX__\amulet"
+class               = ARTEFACT
+cform               = skeleton
+visual              = physics\anomaly\artefact_blackdrip   ; af_medusa's model; or your own OGF (stalker-soc-art)
+description         = __PREFIX___amulet_desc
+inv_name            = __PREFIX___amulet_name
+inv_name_short      = __PREFIX___amulet_name
+inv_weight          = 0.3
+inv_grid_width      = 1
+inv_grid_height     = 1
+inv_grid_x          = 1
+inv_grid_y          = 36
+cost                = 2000
+jump_height         = 0
+lights_enabled      = false
+artefact_activation_seq = af_activation_gravi
+health_restore_speed    = 0.0001
+radiation_restore_speed = 0
+satiety_restore_speed   = 0      ; required (fatal "Can't find variable" on spawn if missing)
+power_restore_speed     = 0.001
+bleeding_restore_speed  = 0.005
+hit_absorbation_sect    = __PREFIX___amulet_absorbation
+
+[__PREFIX___amulet_absorbation]
+burn_immunity           = 0.9
+strike_immunity         = 0.9
+shock_immunity          = 0.9
+wound_immunity          = 0.9
+radiation_immunity      = 1.0
+telepatic_immunity      = 1.0
+chemical_burn_immunity  = 1.0
+explosion_immunity      = 0.9
+fire_wound_immunity     = 0.9
+
+; ---------- a very heavy invisible item: pins the player in place while carried ----------
+[__PREFIX___weight]:quest_case_01
+inv_name            = __PREFIX___weight_name
+inv_name_short      = __PREFIX___weight_name
+description         = __PREFIX___weight_desc
+inv_weight          = 400
+quest_item          = true
+can_trade           = false
+
+; ---------- script-spawned stash box ----------
+; custom_data is REQUIRED (vanilla logic with nonscript_usable = true), or F does nothing.
+; box_metall_01 as visual has no use prompt; box_wood_01 works.
+[__PREFIX___stash_box]:inventory_box
+visual              = physics\box\box_wood_01
+custom_data         = scripts\treasure_inventory_box.ltx

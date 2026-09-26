@@ -1,0 +1,36 @@
+; __PREFIX__: __ID__ as a sitting trader at Sidorovich's desk (vanilla mob_trader animations; the vanilla
+; sound_phrase voice lines are left out). Section must inherit m_trader and stand at the desk spot.
+[logic]
+active = mob_trader@idle
+on_trade = mob_trade@trade
+trade = misc\__PREFIX___trade___ID__.ltx
+
+[mob_trader@idle]
+anim_global = desk_idle
+on_signal = animation_end| {~40} mob_trader@idle_back, mob_trader@idle
+on_info = {=talking} mob_trader@talk
+
+[mob_trader@idle_back]
+anim_global = desk_to_chair_hack
+on_signal = animation_end| mob_trader@lean
+
+[mob_trader@lean]
+anim_global = chair_hack_idle
+on_signal = animation_end| {~30} mob_trader@lean_front, mob_trader@lean
+on_info = {=talking} mob_trader@talk
+
+[mob_trader@lean_front]
+anim_global = chair_hack_to_desk
+on_signal = animation_end| mob_trader@idle
+
+[mob_trader@talk]
+anim_global = chair_hack_talk
+anim_head = normal
+on_info = {!talking} mob_trader@lean
+
+[mob_trade@trade]
+anim_global = chair_hack_idle
+on_info = {!trading} mob_trader@lean
+
+[smart_terrains]
+none = true

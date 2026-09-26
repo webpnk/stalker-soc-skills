@@ -1,0 +1,11 @@
+/unpacked/
+/downloads/
+/tools/
+/appdata/
+/work/
+/game/bin/
+/game/gamedata.db*
+/game/fsgame.ltx
+
+*.blend1
+__pycache__/

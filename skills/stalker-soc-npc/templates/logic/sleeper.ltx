@@ -1,0 +1,15 @@
+; __PREFIX__: __ID__ sleeps on a patrol point (path_main = one-point path).
+[logic]
+active = sleeper@sleep
+
+[sleeper@sleep]
+danger = __PREFIX___no_danger
+path_main = CHANGE_ME_sleep
+; bangs (explosions, fireworks, shots nearby) must not send the NPC running for cover
+[__PREFIX___no_danger]
+ignore_types = grenade, corpse, hit, sound
+ignore_distance = 0
+
+; without this the nearest smart terrain hands the NPC a vanilla gulag job that overrides this logic
+[smart_terrains]
+none = true

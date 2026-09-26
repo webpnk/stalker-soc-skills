@@ -1,0 +1,10 @@
+{
+  "name": "stalker-soc-modding",
+  "description": "Skills for modding S.T.A.L.K.E.R.: Shadow of Chernobyl (1.0006): workspace setup and build, in-game test loop, Lua framework and gotchas, NPCs, dialogs and tasks, items and icons, all.spawn editing, Blender art.",
+  "version": "1.0.0",
+  "author": { "name": "webpnk" },
+  "homepage": "https://github.com/webpnk/stalker-soc-skills",
+  "repository": "https://github.com/webpnk/stalker-soc-skills",
+  "license": "MIT",
+  "keywords": ["stalker", "x-ray", "modding", "shadow-of-chernobyl", "gamedev"]
+}

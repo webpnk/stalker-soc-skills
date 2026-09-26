@@ -1,0 +1,13 @@
+; __PREFIX__: all mod config sections, included at the END of config\system.ltx (see overrides.ps1)
+#include "__PREFIX___dev.ltx"
+
+; ---------- props (stalker-soc-art / stalker-soc-lua props binder) ----------
+[__PREFIX___prop_base]:physic_object
+script_binding      = __PREFIX___props.init
+
+; ---------- NPCs (stalker-soc-npc) ----------
+[__PREFIX___npc_base]:stalker
+spec_rank           = novice
+community           = stalker
+
+; ---------- items (stalker-soc-items) ----------

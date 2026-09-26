@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Dialog patterns (SoC). Phrase ids are strings; <next> links phrases. Speakers alternate by DEPTH:
+     start_dialog  (character_desc <start_dialog>): phrase 0 is spoken by the NPC, children by the actor,
+                   grandchildren by the NPC ... The NPC picks its FIRST valid reply; the actor gets a menu.
+     actor_dialog  (character_desc <actor_dialog>, several allowed): phrase 0 is the ACTOR's menu line.
+     The actor_dialogs are only offered after the start_dialog ends: end it on a neutral "menu" line
+     ("Есть разговор."), not "bye", or the player can't reach them in the same conversation.
+     Per-phrase tags: <has_info>, <dont_has_info>, <precondition>script.func</precondition>,
+     <give_info>, <disable_info>, <action>script.func</action> (func(npc, actor) / func(actor, npc)).
+     Dialog-level tags (before <phrase_list>) gate the whole actor_dialog in the menu.
+     Do NOT release/teleport the NPC you talk to, start fades or disable input inside an <action>:
+     set a flag and do it once db.actor:is_talking() is false. -->
+<game_dialogs>
+
+	<!-- greeting with state-dependent branches, ending in the menu line -->
+	<dialog id="__PREFIX___bob_start">
+		<phrase_list>
+			<phrase id="0">
+				<text>__PREFIX___bob_hello</text>
+				<next>1</next><next>2</next><next>9</next>
+			</phrase>
+			<phrase id="1">
+				<dont_has_info>__PREFIX___bob_met</dont_has_info>
+				<text>__PREFIX___bob_x1</text>
+				<next>11</next>
+			</phrase>
+			<phrase id="11">
+				<text>__PREFIX___bob_1</text>
+				<give_info>__PREFIX___bob_met</give_info>
+			</phrase>
+			<phrase id="2">
+				<has_info>__PREFIX___bob_met</has_info>
+				<text>__PREFIX___bob_x2</text>
+				<next>21</next>
+			</phrase>
+			<phrase id="21">
+				<text>__PREFIX___bob_2</text>
+			</phrase>
+			<phrase id="9">
+				<text>__PREFIX___dlg_menu</text>
+			</phrase>
+		</phrase_list>
+	</dialog>
+
+	<!-- a job offered from the menu: gated at dialog level, gives the task via an info portion -->
+	<dialog id="__PREFIX___bob_job">
+		<has_info>__PREFIX___bob_met</has_info>
+		<dont_has_info>__PREFIX___bob_job_given</dont_has_info>
+		<phrase_list>
+			<phrase id="0">
+				<text>__PREFIX___bob_job_0</text>
+				<next>1</next>
+			</phrase>
+			<phrase id="1">
+				<text>__PREFIX___bob_job_1</text>
+				<next>11</next><next>12</next>
+			</phrase>
+			<phrase id="11">
+				<text>__PREFIX___bob_job_11</text>
+				<give_info>__PREFIX___bob_job_given</give_info>
+			</phrase>
+			<phrase id="12">
+				<text>__PREFIX___bob_job_12</text>
+			</phrase>
+		</phrase_list>
+	</dialog>
+
+	<!-- turning in: a script precondition checks the inventory, the action takes items/pays -->
+	<dialog id="__PREFIX___bob_turn_in">
+		<has_info>__PREFIX___bob_job_given</has_info>
+		<dont_has_info>__PREFIX___bob_job_done</dont_has_info>
+		<precondition>__PREFIX___bob.has_package</precondition>
+		<phrase_list>
+			<phrase id="0">
+				<text>__PREFIX___bob_turn_0</text>
+				<next>1</next>
+			</phrase>
+			<phrase id="1">
+				<text>__PREFIX___bob_turn_1</text>
+				<action>__PREFIX___bob.turn_in</action>
+				<give_info>__PREFIX___bob_job_done</give_info>
+			</phrase>
+		</phrase_list>
+	</dialog>
+</game_dialogs>

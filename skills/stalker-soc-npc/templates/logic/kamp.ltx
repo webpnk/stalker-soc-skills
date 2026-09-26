@@ -1,0 +1,17 @@
+; __PREFIX__: __ID__ sits at a campfire (xr_kamp). center_point = a one-point patrol path at the fire.
+; An NPC carrying guitar_a / harmonica_a plays it. Keep <= 4 NPCs per kamp: more than it has places
+; raises a Lua error in xr_kamp when one leaves.
+[logic]
+active = kamp@fire
+
+[kamp@fire]
+danger = __PREFIX___no_danger
+center_point = CHANGE_ME_kamp_center
+; bangs (explosions, fireworks, shots nearby) must not send the NPC running for cover
+[__PREFIX___no_danger]
+ignore_types = grenade, corpse, hit, sound
+ignore_distance = 0
+
+; without this the nearest smart terrain hands the NPC a vanilla gulag job that overrides this logic
+[smart_terrains]
+none = true

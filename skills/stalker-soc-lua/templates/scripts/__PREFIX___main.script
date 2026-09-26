@@ -1,0 +1,42 @@
+-- __PREFIX__: framework entry point, called from bind_stalker.script (actor_binder hooks, see
+-- stalker-soc-project-setup overrides.ps1). The retail engine swallows Lua errors raised inside binder
+-- callbacks, so every hook runs under pcall and reports its first error through moddev.out().
+-- (pcall cannot catch luabind C++ exceptions - those kill the Lua VM; see stalker-soc-lua gotchas.)
+
+local reported = {}
+
+local function guarded(name, f, ...)
+	local ok, err = pcall(f, ...)
+	if not ok and not reported[name .. tostring(err)] then
+		reported[name .. tostring(err)] = true
+		moddev.out("error in " .. name .. ": " .. tostring(err))
+		get_console():execute("flush")
+	end
+end
+
+-- actor net_spawn (new game, level load, save load)
+function on_actor_spawn(binder)
+	guarded("story.on_new_game", __PREFIX___story.on_new_game)
+	guarded("moddev.on_spawn", moddev.on_spawn)
+end
+
+-- every actor update (~every frame). Keep per-frame work cheap: throttle with time_global().
+function on_actor_update(binder, delta)
+	local t = time_global()
+	guarded("hud.update", __PREFIX___hud.update, t)
+	-- guarded("act1.update", __PREFIX___act1.update, t)
+	guarded("moddev.update", moddev.update, t)
+end
+
+-- Inventory callbacks run inside the engine's inventory code: do NOT give info portions that start
+-- tasks, add map spots, or release objects here (crash). Queue the item and react on the next update.
+function on_item_take(obj)
+	-- guarded("act1.on_item_take", __PREFIX___act1.on_item_take, obj)
+end
+
+function on_item_drop(obj)
+end
+
+-- fires for every item taken from an inventory box (including "take all")
+function on_take_from_box(box, item)
+end

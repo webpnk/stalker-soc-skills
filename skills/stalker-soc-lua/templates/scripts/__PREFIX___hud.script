@@ -1,0 +1,65 @@
+-- __PREFIX__: player-facing messages and PDA map marks. Every text is a string id from
+-- config\text\rus\__PREFIX___*.xml (no hardcoded Russian in scripts).
+
+local NEWS_ICON = "ui\\ui_iconsTotal"
+local NEWS_RECT = { 0, 658, 83, 47 }
+
+-- The HUD silently drops a news line longer than ~100 characters, so long texts are split at spaces
+-- into several lines (they stack in reading order). Longer texts stay on screen longer.
+local MAX_LINE = 90
+
+local function split(text)
+	local lines, cur = {}, ""
+	for word in string.gmatch(text, "%S+") do
+		if cur ~= "" and string.len(cur) + 1 + string.len(word) > MAX_LINE then
+			lines[#lines + 1] = cur
+			cur = word
+		else
+			cur = (cur == "") and word or (cur .. " " .. word)
+		end
+	end
+	if cur ~= "" then lines[#lines + 1] = cur end
+	return lines
+end
+
+-- PDA news from a string id (optional string.format arguments)
+function news(string_id, ...)
+	local text = game.translate_string(string_id)
+	if select("#", ...) > 0 then text = string.format(text, ...) end
+	local lines = split(text)
+	local show = 6000 + 2500 * (#lines - 1)
+	for _, line in ipairs(lines) do
+		db.actor:give_game_news(line, NEWS_ICON, Frect():set(NEWS_RECT[1], NEWS_RECT[2], NEWS_RECT[3], NEWS_RECT[4]), 0, show)
+	end
+end
+
+-- news shown ms later (spacing out tutorial text so it isn't one wall)
+local queue = {}
+function news_later(ms, string_id)
+	queue[#queue + 1] = { at = time_global() + ms, id = string_id }
+end
+
+function update(t)
+	local i = 1
+	while i <= #queue do
+		if t >= queue[i].at then news(queue[i].id) table.remove(queue, i) else i = i + 1 end
+	end
+end
+
+-- ---------- PDA map marks ----------
+-- mark(id, hint_string_id [, spot]) / unmark(id [, spot]); default spot "green_location".
+-- Unmark BEFORE releasing an object: a spot on a released object logs an error every frame.
+
+function mark(id, hint, spot)
+	spot = spot or "green_location"
+	if id and level.map_has_object_spot(id, spot) == 0 then
+		level.map_add_object_spot(id, spot, game.translate_string(hint))
+	end
+end
+
+function unmark(id, spot)
+	spot = spot or "green_location"
+	if id and level.map_has_object_spot(id, spot) ~= 0 then
+		level.map_remove_object_spot(id, spot)
+	end
+end

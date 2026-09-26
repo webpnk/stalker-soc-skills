@@ -1,0 +1,2 @@
+<!-- __PREFIX__ tasks: a fragment #included from game_tasks.xml (no root element, like vanilla tasks_*.xml).
+     Every task needs objective 0 (title/summary) AND at least one more objective, or the game crashes. -->

@@ -1,0 +1,47 @@
+-- __PREFIX__: story state helpers.
+--
+-- Persistent values live in the vanilla pstor store of the actor (xr_logic.pstor_*), which
+-- bind_stalker saves and loads with the game (numbers, strings, booleans; nil deletes).
+-- Flags that dialogs and tasks need are info portions (config\gameplay\__PREFIX___info.xml), which the
+-- engine saves itself. Script-local Lua variables are NOT saved: anything that must survive a
+-- save/load goes through set()/give().
+
+function get(key, default)
+	local v = xr_logic.pstor_retrieve(db.actor, "__PREFIX___" .. key, nil)
+	if v == nil then return default end
+	return v
+end
+
+function set(key, value)
+	xr_logic.pstor_store(db.actor, "__PREFIX___" .. key, value)
+end
+
+-- ---------- info portions ----------
+
+function has(info) return has_alife_info(info) end
+
+function give(info)
+	if not has_alife_info(info) then db.actor:give_info_portion(info) end
+end
+
+function take(info)
+	if has_alife_info(info) then db.actor:disable_info_portion(info) end
+end
+
+-- ---------- stages ----------
+
+function stage() return get("stage", "1") end
+
+function set_stage(s)
+	set("stage", s)
+	-- an info portion per stage lets dialogs/tasks/logic condlists test it: {+__PREFIX___stage_2}
+	-- (declare __PREFIX___stage_<s> in __PREFIX___info.xml)
+	-- give("__PREFIX___stage_" .. s)
+end
+
+-- first spawn of a new game (not on save load)
+function on_new_game()
+	if get("started", false) then return end
+	set("started", true)
+	give("__PREFIX___started")
+end

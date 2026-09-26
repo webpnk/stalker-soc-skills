@@ -1,0 +1,61 @@
+-- __PREFIX__: navigation helpers (valid level vertices near arbitrary points).
+-- SoC has no "level vertex by position" API, so a point is reached by starting from the nearest
+-- game-graph vertex on this level and hopping across the AI mesh with vertex_in_direction.
+-- Caveat: in built-up areas the nearest AI vertex is often inside a ruin/house. For set pieces use
+-- hand-picked, in-game-tested coordinates (a table of spots) and choose among them.
+
+-- level vertex nearest to (x, z) reachable over the AI mesh from vertex lv
+function nav_vertex(lv, x, z)
+	local best = lv
+	for i = 1, 200 do
+		local p = level.vertex_position(best)
+		local d = vector():set(x - p.x, 0, z - p.z)
+		local dist = d:magnitude()
+		if dist < 1.5 then break end
+		d:normalize()
+		local nxt = level.vertex_in_direction(best, d, math.min(dist, 25))
+		if nxt == best then
+			local moved = false
+			for _, a in ipairs({ 0.7, -0.7, 1.4, -1.4 }) do
+				local s = vector():set(d.x * math.cos(a) - d.z * math.sin(a), 0, d.x * math.sin(a) + d.z * math.cos(a))
+				local alt = level.vertex_in_direction(best, s, 8)
+				if alt ~= best then best = alt moved = true break end
+			end
+			if not moved then break end
+		else
+			best = nxt
+		end
+	end
+	return best
+end
+
+-- level vertex and game vertex of the game-graph vertex on this level closest to (x, z)
+function graph_anchor(x, z)
+	local gg = game_graph()
+	local my_level = gg:vertex(db.actor:game_vertex_id()):level_id()
+	local best_lv, best_gv, best_d = nil, nil, 1e12
+	for gv = 0, 4000 do
+		if not gg:valid_vertex_id(gv) then break end
+		local v = gg:vertex(gv)
+		if v:level_id() == my_level then
+			local p = v:level_point()
+			local d = (p.x - x) ^ 2 + (p.z - z) ^ 2
+			if d < best_d then best_lv, best_gv, best_d = v:level_vertex_id(), gv, d end
+		end
+	end
+	return best_lv, best_gv
+end
+
+-- valid (position, level vertex, game vertex) nearest to (x, z): the arguments alife():create needs
+function point_near(x, z)
+	local alv, agv = graph_anchor(x, z)
+	local lv = nav_vertex(alv or db.actor:level_vertex_id(), x, z)
+	return level.vertex_position(lv), lv, agv or db.actor:game_vertex_id()
+end
+
+-- spawn a section at the valid point nearest (x, z); pass parent only when non-nil
+function spawn_near(section, x, z, parent)
+	local pos, lv, gv = point_near(x, z)
+	if parent then return alife():create(section, pos, lv, gv, parent) end
+	return alife():create(section, pos, lv, gv)
+end

@@ -1,0 +1,21 @@
+; __PREFIX__: __ID__'s trade. buy_condition: what the trader buys (section = min, max price factor);
+; sell_condition: what it sells; buy_supplies: its restocked stock (section = count, probability).
+[trader]
+buy_condition = __PREFIX_____ID___buy
+sell_condition = __PREFIX_____ID___sell
+buy_supplies = __PREFIX_____ID___supplies
+
+[__PREFIX_____ID___buy]
+af_medusa               = 1, 0.5
+af_cristall_flower      = 1, 0.5
+bread                   = 0.4, 0.2
+
+[__PREFIX_____ID___sell]
+ammo_9x18_fmj           = 1.0, 1.2
+medkit                  = 1.2, 1.4
+bandage                 = 1.2, 1.4
+
+[__PREFIX_____ID___supplies]
+ammo_9x18_fmj           = 8, 1
+medkit                  = 3, 1
+bandage                 = 5, 1

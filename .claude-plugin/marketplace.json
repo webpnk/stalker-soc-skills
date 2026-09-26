@@ -1,0 +1,13 @@
+{
+  "name": "stalker-soc-skills",
+  "owner": { "name": "webpnk" },
+  "description": "Claude Code skills for modding S.T.A.L.K.E.R.: Shadow of Chernobyl.",
+  "plugins": [
+    {
+      "name": "stalker-soc-modding",
+      "source": "./",
+      "description": "Skills for modding S.T.A.L.K.E.R.: Shadow of Chernobyl (1.0006): setup, build, test loop, Lua, NPCs, quests, items, spawn, art.",
+      "version": "1.0.0"
+    }
+  ]
+}

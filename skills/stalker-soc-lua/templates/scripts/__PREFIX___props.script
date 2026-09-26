@@ -1,0 +1,35 @@
+-- __PREFIX__: binder for static decoration props (sections with script_binding = __PREFIX___props.init).
+-- fixed_bones in a section is ignored for objects created by script, so each time the prop comes
+-- online its physics elements are pinned here. The shell may not exist yet in net_spawn, so
+-- update() retries until it does.
+
+function init(obj)
+	obj:bind_object(prop_binder(obj))
+end
+
+class "prop_binder" (object_binder)
+
+function prop_binder:__init(obj) super(obj)
+	self.fixed = false
+end
+
+function prop_binder:try_fix()
+	local shell = self.object:get_physics_shell()
+	if shell == nil then return false end
+	for i = 0, shell:get_elements_number() - 1 do
+		shell:get_element_by_order(i):fix()
+	end
+	self.fixed = true
+	return true
+end
+
+function prop_binder:net_spawn(data)
+	if not object_binder.net_spawn(self, data) then return false end
+	self:try_fix()
+	return true
+end
+
+function prop_binder:update(delta)
+	object_binder.update(self, delta)
+	if not self.fixed then self:try_fix() end
+end

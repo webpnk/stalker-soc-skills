@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- start_dialog: phrase 0 is the NPC's greeting (even depth = NPC, odd = actor).
+     actor_dialog: phrase 0 is the actor's menu line. -->
+<game_dialogs>
+</game_dialogs>

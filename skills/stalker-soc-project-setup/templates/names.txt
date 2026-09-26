@@ -1,0 +1,5 @@
+# Name tokens: {N:key} in any src\mod text file is replaced at build time (src\tools\build.ps1).
+# Keep every proper name (and its grammatical cases) here, so a translation choice lives in one place.
+# key = text     (keys: lowercase letters, digits, underscore)
+hero = Меченый
+hero_gen = Меченого
