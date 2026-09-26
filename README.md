@@ -23,11 +23,12 @@ each found the hard way.
 
 ## Install
 
-**As a plugin** (Claude Code):
+**As a plugin** (Claude Code; needs `git` on PATH):
 ```
-/plugin marketplace add webpnk/stalker-soc-skills
+/plugin marketplace add https://github.com/webpnk/stalker-soc-skills.git
 /plugin install stalker-soc-modding@stalker-soc-skills
 ```
+(The short form `webpnk/stalker-soc-skills` clones over SSH and only works with a GitHub SSH key set up.)
 
 **Or copy** the folders in `skills\` into `%USERPROFILE%\.claude\skills\` (personal) or a project's
 `.claude\skills\`. Keep the family together: `new_workspace.ps1` pulls templates from the sibling
